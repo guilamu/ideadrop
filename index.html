@@ -969,9 +969,16 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       return;
     }
 
-    list.innerHTML = repos.map(r => {
-      const ideas = getIdeas(r.full_name);
-      const openCount = ideas.filter(i => i.state === 'open').length;
+    // Sort repositories: show repos with active/open ideas at the top (sorted by openCount descending)
+    const sortedRepos = [...repos]
+      .map(r => {
+        const ideas = getIdeas(r.full_name);
+        const openCount = ideas.filter(i => i.state === 'open').length;
+        return { repo: r, openCount };
+      })
+      .sort((a, b) => b.openCount - a.openCount);
+
+    list.innerHTML = sortedRepos.map(({ repo: r, openCount }) => {
       return `
       <button class="repo-item" data-repo-fullname="${escAttr(r.full_name)}">
         <div class="repo-icon" aria-hidden="true">
@@ -981,7 +988,6 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
           <div class="repo-name">${escHtml(r.name)}</div>
           <div class="repo-meta">
             ${openCount > 0 ? `<span class="badge badge-issue">${openCount} open</span>` : ''}
-            ${r.language ? `<span>${escHtml(r.language)}</span>` : ''}
           </div>
         </div>
         <svg class="repo-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
