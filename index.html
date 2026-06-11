@@ -518,6 +518,23 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
     return map;
   }
 
+  // ── DELETED IDS TRACKER ──
+  function getDeletedIds() {
+    try { return JSON.parse(localStorage.getItem('ideadrop_v1_deleted_ids') || '[]'); }
+    catch (e) { return []; }
+  }
+  function saveDeletedIds(ids) {
+    try { localStorage.setItem('ideadrop_v1_deleted_ids', JSON.stringify(ids)); }
+    catch (e) { }
+  }
+  function trackDeletedId(id) {
+    const ids = getDeletedIds();
+    if (!ids.includes(id)) {
+      ids.push(id);
+      saveDeletedIds(ids);
+    }
+  }
+
   // ── THEME ──
   const html = document.documentElement;
   let theme = localStorage.getItem('ideadrop_theme') || 'dark';
@@ -586,10 +603,19 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
   }
 
   // ── MERGE ENGINE ──
-  function mergeSyncData(localCols, remoteCols, localIdeasMap, remoteIdeasMap) {
-    const mergedCols = [...localCols];
+  function mergeSyncData(localCols, remoteCols, localIdeasMap, remoteIdeasMap, localDeletedIds, remoteDeletedIds) {
+    const mergedDeletedIds = Array.from(new Set([...localDeletedIds, ...remoteDeletedIds].map(id => String(id))));
+
+    // 1. Merge collections
+    // Filter local collections to remove any deleted ones
+    const filteredLocalCols = localCols.filter(col => !mergedDeletedIds.includes(String(col.id)));
+    const mergedCols = [...filteredLocalCols];
+
     remoteCols.forEach(rCol => {
-      const idx = mergedCols.findIndex(c => c.id === rCol.id);
+      const colIdStr = String(rCol.id);
+      if (mergedDeletedIds.includes(colIdStr)) return;
+
+      const idx = mergedCols.findIndex(c => String(c.id) === colIdStr);
       if (idx === -1) {
         mergedCols.push(rCol);
       } else {
@@ -601,26 +627,42 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       }
     });
 
-    const mergedIdeasMap = { ...localIdeasMap };
-    for (const key in remoteIdeasMap) {
-      const rIdeas = remoteIdeasMap[key] || [];
-      const lIdeas = mergedIdeasMap[key] || [];
-      const mIdeas = [...lIdeas];
-      rIdeas.forEach(rIdea => {
-        const idx = mIdeas.findIndex(i => i.id === rIdea.id);
-        if (idx === -1) {
-          mIdeas.push(rIdea);
-        } else {
-          const localTime = new Date(mIdeas[idx].updated_at || 0);
-          const remoteTime = new Date(rIdea.updated_at || 0);
-          if (remoteTime > localTime) {
-            mIdeas[idx] = rIdea;
-          }
+    // 2. Merge ideas
+    const mergedIdeasMap = {};
+
+    // Helper to process an idea and resolve conflict based on updated_at
+    const processIdea = (key, idea) => {
+      const ideaIdStr = String(idea.id);
+      if (mergedDeletedIds.includes(ideaIdStr)) return;
+
+      if (!mergedIdeasMap[key]) {
+        mergedIdeasMap[key] = [];
+      }
+      const ideasArr = mergedIdeasMap[key];
+      const idx = ideasArr.findIndex(i => String(i.id) === ideaIdStr);
+      if (idx === -1) {
+        ideasArr.push(idea);
+      } else {
+        const existingTime = new Date(ideasArr[idx].updated_at || 0);
+        const incomingTime = new Date(idea.updated_at || 0);
+        if (incomingTime > existingTime) {
+          ideasArr[idx] = idea;
         }
-      });
-      mergedIdeasMap[key] = mIdeas;
+      }
+    };
+
+    for (const key in localIdeasMap) {
+      (localIdeasMap[key] || []).forEach(idea => processIdea(key, idea));
     }
-    return { collections: mergedCols, ideas: mergedIdeasMap };
+    for (const key in remoteIdeasMap) {
+      (remoteIdeasMap[key] || []).forEach(idea => processIdea(key, idea));
+    }
+
+    return { 
+      collections: mergedCols, 
+      ideas: mergedIdeasMap,
+      deletedIds: mergedDeletedIds
+    };
   }
 
   // ── SYNC ENGINE ──
@@ -666,26 +708,51 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       // 3. Prepare local contents
       const localCols = getCollections();
       const localIdeasMap = getLocalIdeasMap();
+      const localDeletedIds = getDeletedIds();
 
       // 4. Merge datasets
       let mergedCols = localCols;
       let mergedIdeasMap = localIdeasMap;
+      let mergedDeletedIds = localDeletedIds;
+
       if (remoteData) {
-        const merged = mergeSyncData(localCols, remoteData.collections || [], localIdeasMap, remoteData.ideas || {});
+        const merged = mergeSyncData(
+          localCols, 
+          remoteData.collections || [], 
+          localIdeasMap, 
+          remoteData.ideas || {},
+          localDeletedIds,
+          remoteData.deleted_ids || []
+        );
         mergedCols = merged.collections;
         mergedIdeasMap = merged.ideas;
+        mergedDeletedIds = merged.deletedIds;
 
         // Write merged data to local storage
         saveCollections(mergedCols);
+        saveDeletedIds(mergedDeletedIds);
+        
+        // Write active ideas, cleaning out empty arrays from localStorage
         for (const key in mergedIdeasMap) {
-          saveIdeas(key, mergedIdeasMap[key]);
+          const activeIdeas = mergedIdeasMap[key].filter(i => !mergedDeletedIds.includes(String(i.id)));
+          if (activeIdeas.length === 0) {
+            localStorage.removeItem('ideadrop_v1_ideas_' + key);
+          } else {
+            saveIdeas(key, activeIdeas);
+          }
         }
+
+        // Clean up local storage for deleted collections/ideas
+        mergedDeletedIds.forEach(id => {
+          localStorage.removeItem('ideadrop_v1_ideas_' + id);
+        });
       }
 
       // 5. Save back to GitHub Gist
       const payload = {
         collections: mergedCols,
-        ideas: mergedIdeasMap
+        ideas: mergedIdeasMap,
+        deleted_ids: mergedDeletedIds
       };
       
       const filePayload = {
@@ -792,6 +859,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       localStorage.removeItem('ideadrop_github_token');
       localStorage.removeItem('ideadrop_github_username');
       localStorage.removeItem('ideadrop_gist_id');
+      localStorage.removeItem('ideadrop_v1_deleted_ids');
       document.getElementById('settings-btn').style.display = 'none';
       document.getElementById('topbar-sub').textContent = 'Local Idea Capture';
       showToast('Disconnected from GitHub', 'success');
@@ -1236,6 +1304,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
     const key = getActiveKey();
     const ideas = getIdeas(key).filter(i => i.id !== currentIdea.id);
     saveIdeas(key, ideas);
+    trackDeletedId(currentIdea.id);
     currentIdea = null;
     showToast('Idea deleted', 'success');
     showScreen('screen-ideas');
@@ -1310,6 +1379,12 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
     const editId = document.getElementById('edit-collection-id').value;
     const colName = document.getElementById('col-name-input').value || (currentCollection && currentCollection.name) || 'this collection';
     if (!confirm(`Delete "${colName}" and all its ideas? This cannot be undone.`)) return;
+
+    // Track deleted collection and all of its associated ideas
+    trackDeletedId(editId);
+    const ideas = getIdeas(editId);
+    ideas.forEach(idea => trackDeletedId(idea.id));
+
     const cols = getCollections().filter(c => c.id !== editId);
     saveCollections(cols);
     localStorage.removeItem('ideadrop_v1_ideas_' + editId);
