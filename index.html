@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#171614">
+<title>IdeaDrop</title>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
+<script>
+// Apply saved theme before render to avoid flash
+(function(){ var t=localStorage.getItem('ideadrop_theme'); if(t) document.documentElement.setAttribute('data-theme',t); })();
+</script>
+<style>
+/* ─── TOKENS ─── */
+:root, [data-theme="light"] {
+  --color-bg: #f7f6f2; --color-surface: #f9f8f5; --color-surface-2: #fbfbf9;
+  --color-surface-offset: #f3f0ec; --color-surface-dynamic: #e6e4df;
+  --color-divider: #dcd9d5; --color-border: #d4d1ca;
+  --color-text: #28251d; --color-text-muted: #7a7974; --color-text-faint: #bab9b4;
+  --color-text-inverse: #f9f8f4;
+  --color-primary: #01696f; --color-primary-hover: #0c4e54;
+  --color-primary-active: #0f3638; --color-primary-highlight: #cedcd8;
+  --color-error: #a12c7b; --color-error-hover: #7d1e5e;
+  --color-success: #437a22; --color-success-hover: #2e5c10;
+  --color-warning: #964219;
+  --radius-sm: 0.375rem; --radius-md: 0.5rem; --radius-lg: 0.75rem;
+  --radius-xl: 1rem; --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px oklch(0.2 0.01 80/0.06);
+  --shadow-md: 0 4px 12px oklch(0.2 0.01 80/0.08);
+  --shadow-lg: 0 12px 32px oklch(0.2 0.01 80/0.12);
+  --text-xs: clamp(0.75rem,0.7rem + 0.25vw,0.875rem);
+  --text-sm: clamp(0.875rem,0.8rem + 0.35vw,1rem);
+  --text-base: clamp(1rem,0.95rem + 0.25vw,1.125rem);
+  --text-lg: clamp(1.125rem,1rem + 0.75vw,1.5rem);
+  --text-xl: clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+  --space-1:.25rem;--space-2:.5rem;--space-3:.75rem;--space-4:1rem;
+  --space-5:1.25rem;--space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;
+  --space-12:3rem;--space-16:4rem;
+  --transition: 180ms cubic-bezier(0.16,1,0.3,1);
+  --font-body: 'Satoshi', 'Inter', sans-serif;
+}
+[data-theme="dark"] {
+  --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;
+  --color-surface-offset:#1d1c1a;--color-surface-dynamic:#2d2c2a;
+  --color-divider:#262523;--color-border:#393836;
+  --color-text:#cdccca;--color-text-muted:#797876;--color-text-faint:#5a5957;
+  --color-text-inverse:#2b2a28;
+  --color-primary:#4f98a3;--color-primary-hover:#227f8b;
+  --color-primary-active:#1a626b;--color-primary-highlight:#313b3b;
+  --color-error:#d163a7;--color-error-hover:#b9478f;
+  --color-success:#6daa45;--color-success-hover:#4d8f25;
+  --color-warning:#bb653b;
+  --shadow-sm:0 1px 2px oklch(0 0 0/0.2);
+  --shadow-md:0 4px 12px oklch(0 0 0/0.3);
+  --shadow-lg:0 12px 32px oklch(0 0 0/0.4);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) { --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;--color-surface-offset:#1d1c1a;--color-surface-dynamic:#2d2c2a;--color-divider:#262523;--color-border:#393836;--color-text:#cdccca;--color-text-muted:#797876;--color-text-faint:#5a5957;--color-text-inverse:#2b2a28;--color-primary:#4f98a3;--color-primary-hover:#227f8b;--color-primary-active:#1a626b;--color-primary-highlight:#313b3b;--color-error:#d163a7;--color-success:#6daa45;--color-warning:#bb653b; } }
+
+/* ─── RESET ─── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-text-size-adjust:none;text-size-adjust:none;-webkit-font-smoothing:antialiased;scroll-behavior:smooth;}
+body{min-height:100dvh;font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text);background:var(--color-bg);line-height:1.5;}
+img,svg{display:block;max-width:100%;}
+button{cursor:pointer;background:none;border:none;font:inherit;color:inherit;}
+input,textarea,select{font:inherit;color:inherit;}
+a,button,[role="button"]{transition:color var(--transition),background var(--transition),border-color var(--transition),box-shadow var(--transition),opacity var(--transition);}
+:focus-visible{outline:2px solid var(--color-primary);outline-offset:3px;border-radius:var(--radius-sm);}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+
+/* ─── LAYOUT ─── */
+#app{display:flex;flex-direction:column;min-height:100dvh;max-width:480px;margin-inline:auto;position:relative;}
+
+/* ─── TOPBAR ─── */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:color-mix(in oklch, var(--color-bg) 80%, transparent);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--color-border);
+  padding:var(--space-3) var(--space-4);
+  display:flex;align-items:center;gap:var(--space-3);
+}
+.topbar-logo{display:flex;align-items:center;gap:var(--space-2);}
+.topbar-logo svg{color:var(--color-primary);}
+.topbar-title{font-size:var(--text-sm);font-weight:700;letter-spacing:-0.01em;}
+.topbar-subtitle{font-size:var(--text-xs);color:var(--color-text-muted);}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:var(--space-2);}
+.icon-btn{
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--radius-md);color:var(--color-text-muted);
+}
+.icon-btn:hover{background:var(--color-surface-offset);color:var(--color-text);}
+.icon-btn:active{background:var(--color-surface-dynamic);}
+
+/* ─── SCREENS ─── */
+.screen{display:none;flex:1;flex-direction:column;padding:var(--space-4);gap:var(--space-4);overflow-y:auto;}
+.screen.active{display:flex;}
+
+/* ─── SEARCH ─── */
+.search-wrap{position:relative;}
+.search-wrap svg{position:absolute;left:var(--space-3);top:50%;transform:translateY(-50%);color:var(--color-text-muted);pointer-events:none;}
+.search-input{
+  width:100%;background:var(--color-surface);border:1px solid var(--color-border);
+  border-radius:var(--radius-full);padding:var(--space-3) var(--space-4) var(--space-3) calc(var(--space-3)*3);
+  font-size:var(--text-sm);color:var(--color-text);
+}
+.search-input:focus{outline:none;border-color:var(--color-primary);box-shadow:0 0 0 3px color-mix(in oklch,var(--color-primary) 20%,transparent);}
+.search-input::placeholder{color:var(--color-text-faint);}
+
+/* ─── COLLECTION LIST ─── */
+.section-label{font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.05em;}
+.repo-list{display:flex;flex-direction:column;gap:var(--space-2);}
+.repo-item{
+  background:var(--color-surface);border:1px solid var(--color-border);
+  border-radius:var(--radius-lg);padding:var(--space-4);
+  display:flex;align-items:center;gap:var(--space-3);cursor:pointer;
+  min-height:64px;
+}
+.repo-item:hover{background:var(--color-surface-2);border-color:var(--color-primary-highlight);}
+.repo-item:active{background:var(--color-surface-dynamic);transform:scale(0.99);}
+.repo-icon{
+  width:36px;height:36px;flex-shrink:0;
+  background:var(--color-primary-highlight);border-radius:var(--radius-md);
+  display:flex;align-items:center;justify-content:center;color:var(--color-primary);
+}
+.repo-info{flex:1;min-width:0;}
+.repo-name{font-size:var(--text-sm);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.repo-meta{font-size:var(--text-xs);color:var(--color-text-muted);display:flex;align-items:center;gap:var(--space-2);margin-top:var(--space-1);}
+.repo-arrow{color:var(--color-text-faint);}
+.badge{
+  display:inline-flex;align-items:center;gap:var(--space-1);
+  padding:2px var(--space-2);border-radius:var(--radius-full);
+  font-size:var(--text-xs);font-weight:600;
+}
+.badge-issue{background:color-mix(in oklch,var(--color-primary) 15%,var(--color-surface));color:var(--color-primary);}
+.badge-open{background:color-mix(in oklch,var(--color-success) 15%,var(--color-surface));color:var(--color-success);}
+.badge-closed{background:var(--color-surface-offset);color:var(--color-text-muted);}
+.badge-new{background:color-mix(in oklch,var(--color-warning) 15%,var(--color-surface));color:var(--color-warning);}
+
+/* ─── SKELETON ─── */
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.skeleton{background:linear-gradient(90deg,var(--color-surface-offset) 25%,var(--color-surface-dynamic) 50%,var(--color-surface-offset) 75%);background-size:200% 100%;animation:shimmer 1.5s ease-in-out infinite;border-radius:var(--radius-sm);}
+.skel-item{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);display:flex;align-items:center;gap:var(--space-3);}
+.skel-icon{width:36px;height:36px;flex-shrink:0;border-radius:var(--radius-md);}
+.skel-body{flex:1;display:flex;flex-direction:column;gap:var(--space-2);}
+.skel-line{height:.85em;}
+
+/* ─── IDEAS SCREEN ─── */
+.back-btn{display:flex;align-items:center;gap:var(--space-2);color:var(--color-primary);font-size:var(--text-sm);font-weight:600;padding:var(--space-1) 0;min-height:44px;}
+.back-btn:active{opacity:0.7;}
+.repo-header{display:flex;align-items:center;gap:var(--space-3);}
+.repo-header-icon{width:44px;height:44px;flex-shrink:0;background:var(--color-primary-highlight);border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;color:var(--color-primary);}
+.repo-header-info{flex:1;min-width:0;}
+.repo-header-info h2{font-size:var(--text-lg);font-weight:700;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.repo-header-info p{font-size:var(--text-xs);color:var(--color-text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.new-idea-btn{
+  display:flex;align-items:center;justify-content:center;gap:var(--space-2);
+  background:var(--color-primary);color:var(--color-text-inverse);
+  border-radius:var(--radius-lg);padding:var(--space-4);
+  font-size:var(--text-sm);font-weight:700;min-height:52px;
+  box-shadow:var(--shadow-md);
+}
+.new-idea-btn:hover{background:var(--color-primary-hover);}
+.new-idea-btn:active{background:var(--color-primary-active);transform:scale(0.98);}
+.issue-list{display:flex;flex-direction:column;gap:var(--space-2);}
+.issue-item{
+  background:var(--color-surface);border:1px solid var(--color-border);
+  border-radius:var(--radius-lg);padding:var(--space-4);cursor:pointer;
+}
+.issue-item:hover{background:var(--color-surface-2);border-color:var(--color-primary-highlight);}
+.issue-item:active{background:var(--color-surface-dynamic);}
+.issue-top{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-2);margin-bottom:var(--space-1);}
+.issue-title{font-size:var(--text-sm);font-weight:600;line-height:1.4;}
+.issue-meta{font-size:var(--text-xs);color:var(--color-text-muted);}
+.issue-body-preview{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.tab-row{display:flex;gap:var(--space-1);background:var(--color-surface-offset);border-radius:var(--radius-lg);padding:3px;}
+.tab-btn{
+  flex:1;padding:var(--space-2) var(--space-3);border-radius:calc(var(--radius-lg) - 3px);
+  font-size:var(--text-xs);font-weight:600;color:var(--color-text-muted);text-align:center;min-height:36px;
+}
+.tab-btn.active{background:var(--color-surface);color:var(--color-text);box-shadow:var(--shadow-sm);}
+.tab-btn:not(.active):hover{color:var(--color-text);}
+.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:var(--space-10) var(--space-8);color:var(--color-text-muted);}
+.empty-state svg{margin-bottom:var(--space-4);color:var(--color-text-faint);}
+.empty-state h3{font-size:var(--text-sm);font-weight:600;color:var(--color-text);margin-bottom:var(--space-2);}
+.empty-state p{font-size:var(--text-xs);max-width:30ch;line-height:1.6;}
+
+/* ─── MODAL / DRAWER ─── */
+.overlay{position:fixed;inset:0;background:oklch(0.1 0 0/0.6);z-index:100;display:none;align-items:flex-end;backdrop-filter:blur(2px);}
+.overlay.open{display:flex;}
+.drawer{
+  background:var(--color-surface);border-radius:var(--radius-xl) var(--radius-xl) 0 0;
+  width:100%;max-width:480px;margin-inline:auto;
+  padding:var(--space-6) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  box-shadow:0 -8px 40px oklch(0 0 0/0.3);
+  max-height:90dvh;overflow-y:auto;
+  display:flex;flex-direction:column;gap:var(--space-4);
+  animation:slide-up 300ms cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes slide-up{from{transform:translateY(100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.drawer-handle{width:36px;height:4px;background:var(--color-border);border-radius:var(--radius-full);margin:0 auto var(--space-2);}
+.drawer h3{font-size:var(--text-lg);font-weight:700;}
+.field{display:flex;flex-direction:column;gap:var(--space-2);}
+.field label{font-size:var(--text-sm);font-weight:600;color:var(--color-text);}
+.field input{
+  background:var(--color-surface-2);border:1px solid var(--color-border);
+  border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);
+  font-size:var(--text-sm);width:100%;color:var(--color-text);
+}
+.field input:focus{outline:none;border-color:var(--color-primary);box-shadow:0 0 0 3px color-mix(in oklch,var(--color-primary) 20%,transparent);}
+.field-row{display:flex;flex-direction:column;gap:var(--space-3);}
+.textarea-field{
+  width:100%;background:var(--color-surface-2);border:1px solid var(--color-border);
+  border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);
+  font-size:var(--text-sm);resize:vertical;min-height:100px;line-height:1.6;
+}
+.textarea-field:focus{outline:none;border-color:var(--color-primary);box-shadow:0 0 0 3px color-mix(in oklch,var(--color-primary) 20%,transparent);}
+.drawer-actions{display:flex;gap:var(--space-3);}
+.drawer-actions .btn{flex:1;}
+.label-row{display:flex;flex-wrap:wrap;gap:var(--space-2);}
+.label-chip{
+  display:inline-flex;align-items:center;gap:var(--space-1);
+  padding:var(--space-1) var(--space-3);border-radius:var(--radius-full);
+  font-size:var(--text-xs);font-weight:600;border:1px solid transparent;cursor:pointer;
+  min-height:32px;
+}
+.label-chip.selected{border-color:var(--color-primary);background:var(--color-primary-highlight);color:var(--color-primary);}
+.label-chip:not(.selected){border-color:var(--color-border);background:var(--color-surface-offset);color:var(--color-text-muted);}
+.label-chip:hover:not(.selected){background:var(--color-surface-dynamic);}
+
+/* ─── BUTTONS ─── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);
+  padding:var(--space-3) var(--space-5);border-radius:var(--radius-md);
+  font-size:var(--text-sm);font-weight:600;min-height:44px;
+  transition:background var(--transition),opacity var(--transition),transform 80ms;
+}
+.btn:active{transform:scale(0.98);}
+.btn-primary{background:var(--color-primary);color:var(--color-text-inverse);width:100%;margin-top:var(--space-4);}
+.btn-primary:hover{background:var(--color-primary-hover);}
+.btn-primary:active{background:var(--color-primary-active);}
+.btn-ghost{color:var(--color-text-muted);border:1px solid var(--color-border);}
+.btn-ghost:hover{background:var(--color-surface-offset);color:var(--color-text);}
+.btn-danger{background:color-mix(in oklch,var(--color-error) 15%,var(--color-surface));color:var(--color-error);}
+.btn-danger:hover{background:color-mix(in oklch,var(--color-error) 25%,var(--color-surface));}
+
+/* ─── STATUS BAR ─── */
+.status-toast{
+  position:fixed;bottom:calc(var(--space-6) + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-full);
+  padding:var(--space-2) var(--space-5);font-size:var(--text-xs);font-weight:600;
+  box-shadow:var(--shadow-lg);z-index:200;
+  opacity:0;transition:opacity var(--transition),transform var(--transition);pointer-events:none;
+  white-space:nowrap;
+}
+.status-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.status-toast.success{color:var(--color-success);}
+.status-toast.error{color:var(--color-error);}
+
+/* ─── IDEA DETAIL ─── */
+.issue-detail-title{font-size:var(--text-lg);font-weight:700;line-height:1.3;}
+.issue-detail-meta{font-size:var(--text-xs);color:var(--color-text-muted);display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;}
+.divider{height:1px;background:var(--color-divider);}
+.issue-detail-body{font-size:var(--text-sm);color:var(--color-text);line-height:1.7;white-space:pre-wrap;}
+.issue-number{font-size:var(--text-xs);color:var(--color-text-muted);font-weight:500;}
+.edit-btn{
+  display:flex;align-items:center;gap:var(--space-2);color:var(--color-primary);
+  font-size:var(--text-sm);font-weight:600;padding:var(--space-2) var(--space-3);
+  border-radius:var(--radius-md);border:1px solid var(--color-primary-highlight);
+  background:var(--color-primary-highlight);min-height:40px;
+}
+.edit-btn:hover{background:color-mix(in oklch,var(--color-primary) 20%,var(--color-surface));}
+.close-issue-btn{
+  display:flex;align-items:center;gap:var(--space-2);color:var(--color-text-muted);
+  font-size:var(--text-sm);font-weight:600;padding:var(--space-2) var(--space-3);
+  border-radius:var(--radius-md);border:1px solid var(--color-border);min-height:40px;
+}
+.close-issue-btn:hover{background:var(--color-surface-offset);}
+.delete-idea-btn{
+  display:flex;align-items:center;gap:var(--space-2);
+  font-size:var(--text-sm);font-weight:600;padding:var(--space-2) var(--space-3);
+  border-radius:var(--radius-md);min-height:40px;
+  color:var(--color-error);border:1px solid color-mix(in oklch,var(--color-error) 30%,var(--color-border));
+}
+.delete-idea-btn:hover{background:color-mix(in oklch,var(--color-error) 10%,var(--color-surface));}
+.action-row{display:flex;gap:var(--space-2);flex-wrap:wrap;}
+
+/* ─── SPINNER ─── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:20px;height:20px;border:2px solid var(--color-border);border-top-color:var(--color-primary);border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+      </svg>
+      <div>
+        <div class="topbar-title">IdeaDrop</div>
+        <div class="topbar-subtitle" id="topbar-sub">Local Idea Capture</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span id="sync-indicator" style="display:none;align-items:center;font-size:var(--text-xs);color:var(--color-text-muted);font-weight:600;margin-right:var(--space-1)"></span>
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="icon-btn" id="settings-btn" aria-label="Settings" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- SCREEN: COLLECTIONS -->
+  <main class="screen active" id="screen-collections">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="search-input" id="collection-search" type="search" placeholder="Filter collections and repos…" autocomplete="off">
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3)">
+      <div class="section-label" id="collections-label">My Collections</div>
+      <button class="btn btn-primary" id="new-collection-btn"
+              style="width:auto;margin-top:0;padding:var(--space-1) var(--space-4);min-height:32px;font-size:var(--text-xs)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New
+      </button>
+    </div>
+    <div class="repo-list" id="collection-list"></div>
+
+    <div class="section-label" id="repos-label" style="margin-top:var(--space-4)">GitHub Repositories</div>
+    <div class="repo-list" id="repo-list"></div>
+  </main>
+
+  <!-- SCREEN: IDEAS -->
+  <main class="screen" id="screen-ideas">
+    <button class="back-btn" id="back-to-collections">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      Collections & Repos
+    </button>
+    <div class="repo-header">
+      <div class="repo-header-icon" id="repo-header-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </div>
+      <div class="repo-header-info">
+        <h2 id="collection-title"></h2>
+        <p id="collection-subtitle"></p>
+      </div>
+      <button class="icon-btn" id="edit-collection-btn" aria-label="Edit collection">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+    <button class="new-idea-btn" id="new-idea-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      New Idea
+    </button>
+    <div class="tab-row" id="idea-tabs">
+      <button class="tab-btn active" data-state="open">Open ideas</button>
+      <button class="tab-btn" data-state="done">Done</button>
+    </div>
+    <div id="idea-list-container"></div>
+  </main>
+
+  <!-- SCREEN: IDEA DETAIL -->
+  <main class="screen" id="screen-detail">
+    <button class="back-btn" id="back-to-ideas">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to ideas
+    </button>
+    <div id="idea-detail-content"></div>
+  </main>
+
+</div>
+
+<!-- OVERLAY: NEW / EDIT IDEA -->
+<div class="overlay" id="idea-overlay" role="dialog" aria-modal="true" aria-label="Create or edit idea">
+  <div class="drawer">
+    <div class="drawer-handle" aria-hidden="true"></div>
+    <h3 id="drawer-title">New Idea</h3>
+    <input type="hidden" id="edit-idea-id">
+    <div class="field-row">
+      <div class="field">
+        <label for="idea-title">Title</label>
+        <input type="text" id="idea-title" placeholder="Briefly describe the idea…" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="idea-body">Details <span style="font-weight:400;color:var(--color-text-muted)">(optional)</span></label>
+        <textarea class="textarea-field" id="idea-body" placeholder="Steps, context, use case…"></textarea>
+      </div>
+      <div class="field">
+        <label>Labels</label>
+        <div class="label-row" id="label-chips">
+          <button type="button" class="label-chip selected" data-label="enhancement">enhancement</button>
+          <button type="button" class="label-chip" data-label="bug">bug</button>
+          <button type="button" class="label-chip" data-label="documentation">documentation</button>
+          <button type="button" class="label-chip" data-label="question">question</button>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn btn-ghost" id="drawer-cancel">Cancel</button>
+      <button class="btn btn-primary" id="drawer-submit" style="flex:2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="drawer-submit-label">Save Idea</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY: NEW / EDIT COLLECTION -->
+<div class="overlay" id="collection-overlay" role="dialog" aria-modal="true" aria-label="Create or edit collection">
+  <div class="drawer">
+    <div class="drawer-handle" aria-hidden="true"></div>
+    <h3 id="col-drawer-title">New Collection</h3>
+    <input type="hidden" id="edit-collection-id">
+    <div class="field-row">
+      <div class="field">
+        <label for="col-name-input">Name</label>
+        <input type="text" id="col-name-input" placeholder="e.g. App Features, Work Projects…" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="col-desc-input">Description <span style="font-weight:400;color:var(--color-text-muted)">(optional)</span></label>
+        <input type="text" id="col-desc-input" placeholder="What kind of ideas go here?" autocomplete="off">
+      </div>
+    </div>
+    <button class="btn btn-danger" id="delete-collection-btn"
+            style="display:none;width:100%;margin-top:var(--space-2)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Delete this collection
+    </button>
+    <div class="drawer-actions">
+      <button class="btn btn-ghost" id="col-drawer-cancel">Cancel</button>
+      <button class="btn btn-primary" id="col-drawer-submit" style="flex:2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="col-drawer-submit-label">Create Collection</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY: GITHUB CONNECTION -->
+<div class="overlay" id="github-overlay" role="dialog" aria-modal="true" aria-label="Connect GitHub">
+  <div class="drawer">
+    <div class="drawer-handle" aria-hidden="true"></div>
+    <h3>Connect GitHub</h3>
+    <div class="field-row">
+      <div class="field">
+        <label for="token-input">GitHub Personal Access Token</label>
+        <input type="password" id="token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+        <p class="hint" style="font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.5;margin-top:var(--space-1)">
+          Create a token at GitHub &rarr; Settings &rarr; Developer settings &rarr; Personal access tokens. Needs <strong>repo</strong> and <strong>gist</strong> scopes.
+        </p>
+      </div>
+    </div>
+    <div class="drawer-actions">
+      <button class="btn btn-ghost" id="github-cancel">Cancel</button>
+      <button class="btn btn-primary" id="connect-btn" style="flex:2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Connect
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="status-toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  // ── STATE ──
+  let currentCollection = null, allCollections = [], currentIdeaState = 'open', currentIdea = null;
+  let token = '', username = '', currentRepo = null, allRepos = [];
+
+  // ── STORAGE ──
+  const COLLECTIONS_KEY = 'ideadrop_v1_collections';
+
+  function getCollections() {
+    try { return JSON.parse(localStorage.getItem(COLLECTIONS_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function saveCollections(cols) {
+    try { localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(cols)); }
+    catch (e) { showToast('Storage error', 'error'); }
+  }
+  function getIdeas(collectionId) {
+    try { return JSON.parse(localStorage.getItem('ideadrop_v1_ideas_' + collectionId) || '[]'); }
+    catch (e) { return []; }
+  }
+  function saveIdeas(collectionId, ideas) {
+    try { localStorage.setItem('ideadrop_v1_ideas_' + collectionId, JSON.stringify(ideas)); }
+    catch (e) { showToast('Storage error', 'error'); }
+  }
+  function getActiveKey() {
+    return currentCollection ? currentCollection.id : (currentRepo ? currentRepo.full_name : null);
+  }
+  function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  // ── LOCAL SCANNER ──
+  function getLocalIdeasMap() {
+    const map = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('ideadrop_v1_ideas_')) {
+        const id = key.replace('ideadrop_v1_ideas_', '');
+        try {
+          map[id] = JSON.parse(localStorage.getItem(key)) || [];
+        } catch (e) {
+          map[id] = [];
+        }
+      }
+    }
+    return map;
+  }
+
+  // ── THEME ──
+  const html = document.documentElement;
+  let theme = localStorage.getItem('ideadrop_theme') || 'dark';
+  html.setAttribute('data-theme', theme);
+  const themeBtn = document.getElementById('theme-toggle');
+
+  function updateThemeIcon() {
+    themeBtn.setAttribute('aria-label', 'Switch to ' + (theme === 'dark' ? 'light' : 'dark') + ' mode');
+    themeBtn.innerHTML = theme === 'dark'
+      ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
+      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+  }
+  updateThemeIcon();
+
+  themeBtn.addEventListener('click', () => {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', theme);
+    localStorage.setItem('ideadrop_theme', theme);
+    updateThemeIcon();
+  });
+
+  // ── TOAST ──
+  let toastTimer;
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'status-toast ' + type + ' show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  // ── SCREENS ──
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  // ── SKELETONS ──
+  function skeletons(n) {
+    return Array.from({length: n}, () => `
+      <div class="skel-item">
+        <div class="skeleton skel-icon"></div>
+        <div class="skel-body">
+          <div class="skeleton skel-line" style="width:60%"></div>
+          <div class="skeleton skel-line" style="width:40%;height:.7em"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  // ── GITHUB API ──
+  async function ghFetch(path, opts = {}) {
+    const res = await fetch('https://api.github.com' + path, {
+      ...opts,
+      headers: {
+        'Authorization': 'token ' + token,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        ...(opts.headers || {})
+      }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'GitHub API error ' + res.status);
+    }
+    return res.json();
+  }
+
+  // ── MERGE ENGINE ──
+  function mergeSyncData(localCols, remoteCols, localIdeasMap, remoteIdeasMap) {
+    const mergedCols = [...localCols];
+    remoteCols.forEach(rCol => {
+      const idx = mergedCols.findIndex(c => c.id === rCol.id);
+      if (idx === -1) {
+        mergedCols.push(rCol);
+      } else {
+        const localTime = new Date(mergedCols[idx].updated_at || 0);
+        const remoteTime = new Date(rCol.updated_at || 0);
+        if (remoteTime > localTime) {
+          mergedCols[idx] = rCol;
+        }
+      }
+    });
+
+    const mergedIdeasMap = { ...localIdeasMap };
+    for (const key in remoteIdeasMap) {
+      const rIdeas = remoteIdeasMap[key] || [];
+      const lIdeas = mergedIdeasMap[key] || [];
+      const mIdeas = [...lIdeas];
+      rIdeas.forEach(rIdea => {
+        const idx = mIdeas.findIndex(i => i.id === rIdea.id);
+        if (idx === -1) {
+          mIdeas.push(rIdea);
+        } else {
+          const localTime = new Date(mIdeas[idx].updated_at || 0);
+          const remoteTime = new Date(rIdea.updated_at || 0);
+          if (remoteTime > localTime) {
+            mIdeas[idx] = rIdea;
+          }
+        }
+      });
+      mergedIdeasMap[key] = mIdeas;
+    }
+    return { collections: mergedCols, ideas: mergedIdeasMap };
+  }
+
+  // ── SYNC ENGINE ──
+  let isSyncing = false;
+  async function syncWithGist() {
+    if (!token) return;
+    if (isSyncing) return;
+    isSyncing = true;
+
+    const syncIndicator = document.getElementById('sync-indicator');
+    if (syncIndicator) {
+      syncIndicator.style.display = 'inline-flex';
+      syncIndicator.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:1.5px;margin-right:4px"></span> Syncing...';
+    }
+
+    try {
+      let gistId = localStorage.getItem('ideadrop_gist_id');
+      let remoteData = null;
+
+      // 1. Check if Gist exists on GitHub if we don't have the ID locally
+      if (!gistId) {
+        const gists = await ghFetch('/gists?per_page=100');
+        const syncGist = gists.find(g => g.description === 'IdeaDrop Sync Data' && g.files && g.files['ideadrop_sync.json']);
+        if (syncGist) {
+          gistId = syncGist.id;
+          localStorage.setItem('ideadrop_gist_id', gistId);
+        }
+      }
+
+      // 2. Fetch remote Gist contents
+      if (gistId) {
+        try {
+          const gist = await ghFetch('/gists/' + gistId);
+          if (gist.files && gist.files['ideadrop_sync.json']) {
+            const fileContent = gist.files['ideadrop_sync.json'].content;
+            remoteData = JSON.parse(fileContent);
+          }
+        } catch (e) {
+          console.error('Failed to fetch Gist contents', e);
+        }
+      }
+
+      // 3. Prepare local contents
+      const localCols = getCollections();
+      const localIdeasMap = getLocalIdeasMap();
+
+      // 4. Merge datasets
+      let mergedCols = localCols;
+      let mergedIdeasMap = localIdeasMap;
+      if (remoteData) {
+        const merged = mergeSyncData(localCols, remoteData.collections || [], localIdeasMap, remoteData.ideas || {});
+        mergedCols = merged.collections;
+        mergedIdeasMap = merged.ideas;
+
+        // Write merged data to local storage
+        saveCollections(mergedCols);
+        for (const key in mergedIdeasMap) {
+          saveIdeas(key, mergedIdeasMap[key]);
+        }
+      }
+
+      // 5. Save back to GitHub Gist
+      const payload = {
+        collections: mergedCols,
+        ideas: mergedIdeasMap
+      };
+      
+      const filePayload = {
+        description: 'IdeaDrop Sync Data',
+        files: {
+          'ideadrop_sync.json': {
+            content: JSON.stringify(payload, null, 2)
+          }
+        }
+      };
+
+      if (gistId) {
+        await ghFetch('/gists/' + gistId, {
+          method: 'PATCH',
+          body: JSON.stringify(filePayload)
+        });
+      } else {
+        const newGist = await ghFetch('/gists', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...filePayload,
+            public: false
+          })
+        });
+        localStorage.setItem('ideadrop_gist_id', newGist.id);
+      }
+
+      if (syncIndicator) {
+        syncIndicator.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="color:var(--color-success);margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg> Synced';
+        setTimeout(() => {
+          if (syncIndicator.textContent.includes('Synced')) {
+            syncIndicator.style.display = 'none';
+          }
+        }, 3000);
+      }
+    } catch (e) {
+      console.error('Sync error:', e);
+      if (syncIndicator) {
+        syncIndicator.innerHTML = '<span style="color:var(--color-error);font-size:var(--text-xs)">Sync failed</span>';
+      }
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  // ── GITHUB DRAWER OVERLAY ──
+  const githubOverlay = document.getElementById('github-overlay');
+  const tokenInput = document.getElementById('token-input');
+  
+  function openGithubDrawer() {
+    tokenInput.value = token || '';
+    githubOverlay.classList.add('open');
+    setTimeout(() => tokenInput.focus(), 100);
+  }
+  function closeGithubDrawer() {
+    githubOverlay.classList.remove('open');
+  }
+  document.getElementById('github-cancel').addEventListener('click', closeGithubDrawer);
+  githubOverlay.addEventListener('click', e => {
+    if (e.target === githubOverlay) closeGithubDrawer();
+  });
+
+  const connectBtn = document.getElementById('connect-btn');
+  connectBtn.addEventListener('click', async () => {
+    const t = tokenInput.value.trim();
+    if (!t) { showToast('Please enter a token', 'error'); return; }
+    connectBtn.innerHTML = '<span class="spinner"></span> Connecting...';
+    connectBtn.disabled = true;
+    try {
+      const oldToken = token;
+      token = t;
+      const user = await ghFetch('/user');
+      username = user.login;
+      
+      // Save credentials in localStorage
+      localStorage.setItem('ideadrop_github_token', token);
+      localStorage.setItem('ideadrop_github_username', username);
+
+      document.getElementById('topbar-sub').textContent = '@' + username;
+      document.getElementById('settings-btn').style.display = '';
+      closeGithubDrawer();
+      showToast('Connected to GitHub!', 'success');
+      loadRepos();
+      syncWithGist().then(() => {
+        loadCollections();
+        if (token) renderRepos(allRepos);
+      });
+    } catch(e) {
+      showToast('Connection failed: ' + e.message, 'error');
+    } finally {
+      connectBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Connect';
+      connectBtn.disabled = false;
+    }
+  });
+
+  tokenInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') connectBtn.click();
+  });
+
+  // ── SETTINGS / LOGOUT ──
+  document.getElementById('settings-btn').addEventListener('click', () => {
+    if (confirm('Disconnect GitHub account?')) {
+      token = ''; username = ''; allRepos = [];
+      localStorage.removeItem('ideadrop_github_token');
+      localStorage.removeItem('ideadrop_github_username');
+      localStorage.removeItem('ideadrop_gist_id');
+      document.getElementById('settings-btn').style.display = 'none';
+      document.getElementById('topbar-sub').textContent = 'Local Idea Capture';
+      showToast('Disconnected from GitHub', 'success');
+      renderRepos([]);
+    }
+  });
+
+  // ────────────────────────────────────────────
+  // COLLECTIONS & REPOSITORIES
+  // ────────────────────────────────────────────
+
+  function loadCollections() {
+    allCollections = getCollections();
+    renderCollections(allCollections);
+  }
+
+  function renderCollections(collections) {
+    const list = document.getElementById('collection-list');
+    const label = document.getElementById('collections-label');
+    label.textContent = collections.length + (collections.length === 1 ? ' Collection' : ' Collections');
+
+    if (!collections.length) {
+      list.innerHTML = `<div class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <h3>No collections yet</h3>
+        <p>Create a collection to start capturing ideas.</p>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = collections.map(c => {
+      const ideas = getIdeas(c.id);
+      const openCount = ideas.filter(i => i.state === 'open').length;
+      const total = ideas.length;
+      return `<button class="repo-item" data-cid="${escAttr(c.id)}">
+        <div class="repo-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="repo-info">
+          <div class="repo-name">${escHtml(c.name)}</div>
+          <div class="repo-meta">
+            ${openCount > 0 ? `<span class="badge badge-issue">${openCount} open</span>` : ''}
+            ${total > 0 ? `<span>${total} idea${total === 1 ? '' : 's'}</span>` : '<span>No ideas yet</span>'}
+            ${c.description ? `<span>${escHtml(c.description)}</span>` : ''}
+          </div>
+        </div>
+        <svg class="repo-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>`;
+    }).join('');
+
+    list.querySelectorAll('.repo-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentCollection = allCollections.find(c => c.id === btn.dataset.cid);
+        if (currentCollection) openCollectionIdeas();
+      });
+    });
+  }
+
+  // ── LOAD REPOS ──
+  async function loadRepos() {
+    const list = document.getElementById('repo-list');
+    if (!token) {
+      renderRepos([]);
+      return;
+    }
+    list.innerHTML = skeletons(3);
+    try {
+      let page = 1, repos = [];
+      while (true) {
+        const batch = await ghFetch('/user/repos?per_page=100&page=' + page + '&sort=pushed&affiliation=owner');
+        repos = repos.concat(batch);
+        if (batch.length < 100) break;
+        page++;
+      }
+      allRepos = repos;
+      renderRepos(repos);
+    } catch(e) {
+      list.innerHTML = '<p style="color:var(--color-error);font-size:var(--text-sm)">Failed to load: ' + e.message + '</p>';
+    }
+  }
+
+  function renderRepos(repos) {
+    const list = document.getElementById('repo-list');
+    const label = document.getElementById('repos-label');
+    
+    if (!token) {
+      label.textContent = 'GitHub Repositories';
+      list.innerHTML = `
+        <div class="setup-card" style="margin-top:var(--space-2)">
+          <h3 style="font-size:var(--text-sm);font-weight:700;margin-bottom:var(--space-1)">Connect to GitHub</h3>
+          <p style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-4);line-height:1.5">
+            Fetch your GitHub repositories to classify local ideas under them.
+          </p>
+          <button class="btn btn-primary" id="connect-prompt-btn" style="min-height:36px;margin-top:0;width:auto;font-size:var(--text-xs);padding:var(--space-2) var(--space-4)">
+            Connect Account
+          </button>
+        </div>`;
+      
+      document.getElementById('connect-prompt-btn').addEventListener('click', openGithubDrawer);
+      return;
+    }
+
+    label.textContent = repos.length + (repos.length === 1 ? ' GitHub Repository' : ' GitHub Repositories');
+
+    if (!repos.length) {
+      list.innerHTML = '<div class="empty-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l18 18M10.5 10.677a2 2 0 0 0 2.823 2.823"/><path d="M7.362 7.561C5.68 8.74 4.279 10.42 3 12c1.889 2.991 5.282 6 9 6 1.55 0 3.043-.523 4.395-1.35M12 6c3.718 0 7.111 3.009 9 6a15.16 15.16 0 0 1-1.078 1.5"/></svg><h3>No repositories found</h3><p>Create a repo on GitHub first.</p></div>';
+      return;
+    }
+
+    list.innerHTML = repos.map(r => {
+      const ideas = getIdeas(r.full_name);
+      const openCount = ideas.filter(i => i.state === 'open').length;
+      return `
+      <button class="repo-item" data-repo-fullname="${escAttr(r.full_name)}">
+        <div class="repo-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+        </div>
+        <div class="repo-info">
+          <div class="repo-name">${escHtml(r.name)}</div>
+          <div class="repo-meta">
+            ${openCount > 0 ? `<span class="badge badge-issue">${openCount} open</span>` : ''}
+            ${r.language ? `<span>${escHtml(r.language)}</span>` : ''}
+          </div>
+        </div>
+        <svg class="repo-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>`;
+    }).join('');
+
+    list.querySelectorAll('.repo-item').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const repo = allRepos.find(r => r.full_name === btn.dataset.repoFullname);
+        if (repo) openRepoIdeas(repo);
+      });
+    });
+  }
+
+  // Search filter
+  document.getElementById('collection-search').addEventListener('input', function () {
+    const q = this.value.toLowerCase();
+    
+    // Filter collections
+    const filteredCols = allCollections.filter(c =>
+      c.name.toLowerCase().includes(q) || (c.description && c.description.toLowerCase().includes(q))
+    );
+    renderCollections(filteredCols);
+
+    // Filter repos
+    if (token) {
+      const filteredRepos = allRepos.filter(r =>
+        r.name.toLowerCase().includes(q) || (r.description && r.description.toLowerCase().includes(q))
+      );
+      renderRepos(filteredRepos);
+    }
+  });
+
+  // ── OPEN COLLECTION IDEAS ──
+  function openCollectionIdeas() {
+    currentRepo = null;
+    document.getElementById('collection-title').textContent = currentCollection.name;
+    document.getElementById('collection-subtitle').textContent = currentCollection.description || 'No description';
+    
+    // Set folder icon
+    document.getElementById('repo-header-icon').innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+    
+    // Show edit button
+    document.getElementById('edit-collection-btn').style.display = '';
+
+    // Reset to "open" tab
+    currentIdeaState = 'open';
+    document.querySelectorAll('#idea-tabs .tab-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.state === 'open');
+    });
+    showScreen('screen-ideas');
+    loadIdeas('open');
+  }
+
+  // ── OPEN REPO IDEAS ──
+  function openRepoIdeas(repo) {
+    currentRepo = repo;
+    currentCollection = null;
+    document.getElementById('collection-title').textContent = currentRepo.name;
+    document.getElementById('collection-subtitle').textContent = currentRepo.description || 'No description';
+    
+    // Set GitHub icon
+    document.getElementById('repo-header-icon').innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>`;
+    
+    // Hide edit button
+    document.getElementById('edit-collection-btn').style.display = 'none';
+
+    // Reset to "open" tab
+    currentIdeaState = 'open';
+    document.querySelectorAll('#idea-tabs .tab-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.state === 'open');
+    });
+    showScreen('screen-ideas');
+    loadIdeas('open');
+  }
+
+  // ── TABS ──
+  document.getElementById('idea-tabs').querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#idea-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentIdeaState = btn.dataset.state;
+      loadIdeas(currentIdeaState);
+    });
+  });
+
+  // ── LOAD IDEAS ──
+  function loadIdeas(state) {
+    const key = getActiveKey();
+    const ideas = getIdeas(key)
+      .filter(i => i.state === state)
+      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+    renderIdeas(ideas);
+  }
+
+  function renderIdeas(ideas) {
+    const container = document.getElementById('idea-list-container');
+    if (!ideas.length) {
+      const isDone = currentIdeaState === 'done';
+      container.innerHTML = `<div class="empty-state">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+        <h3>${isDone ? 'Nothing done yet' : 'No ideas yet'}</h3>
+        <p>${isDone ? 'Mark ideas as done to see them here.' : 'Tap "New Idea" to capture your first one.'}</p>
+      </div>`;
+      return;
+    }
+    container.innerHTML = '<div class="issue-list">' + ideas.map(idea => {
+      const labels = idea.labels.map(l => `<span class="badge badge-issue">${escHtml(l)}</span>`).join(' ');
+      const stateClass = idea.state === 'open' ? 'badge-open' : 'badge-closed';
+      const stateLabel = idea.state === 'open' ? 'open' : 'done';
+      return `<div class="issue-item" data-iid="${escAttr(idea.id)}">
+        <div class="issue-top">
+          <span class="issue-title">${escHtml(idea.title)}</span>
+          <span class="badge ${stateClass}">${stateLabel}</span>
+        </div>
+        ${idea.body ? `<div class="issue-body-preview">${escHtml(idea.body)}</div>` : ''}
+        <div class="issue-meta" style="margin-top:var(--space-2)">
+          ${idea.number ? `<span class="issue-number">#${idea.number}</span>` : ''}
+          <span>Updated ${timeAgo(idea.updated_at)}</span>
+          ${labels}
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+
+    container.querySelectorAll('.issue-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const key = getActiveKey();
+        const all = getIdeas(key);
+        currentIdea = all.find(i => i.id === item.dataset.iid);
+        if (currentIdea) openIdeaDetail();
+      });
+    });
+  }
+
+  // ── BACK BUTTONS ──
+  document.getElementById('back-to-collections').addEventListener('click', () => {
+    showScreen('screen-collections');
+    loadCollections(); // refresh collections list & counts
+    if (token) {
+      renderRepos(allRepos); // refresh repos list & counts locally
+    }
+  });
+  document.getElementById('back-to-ideas').addEventListener('click', () => {
+    showScreen('screen-ideas');
+    loadIdeas(currentIdeaState);
+  });
+
+  // ── NEW IDEA BUTTON ──
+  document.getElementById('new-idea-btn').addEventListener('click', () => openIdeaDrawer(false));
+
+  // ────────────────────────────────────────────
+  // IDEA DRAWER
+  // ────────────────────────────────────────────
+
+  function openIdeaDrawer(editMode, idea = null) {
+    document.getElementById('drawer-title').textContent = editMode ? 'Edit Idea' : 'New Idea';
+    document.getElementById('drawer-submit-label').textContent = editMode ? 'Save Changes' : 'Save Idea';
+    document.getElementById('idea-title').value = editMode ? idea.title : '';
+    document.getElementById('idea-body').value = editMode ? idea.body : '';
+    document.getElementById('edit-idea-id').value = editMode ? idea.id : '';
+    document.querySelectorAll('.label-chip').forEach(chip => {
+      chip.classList.toggle('selected', editMode ? idea.labels.includes(chip.dataset.label) : chip.dataset.label === 'enhancement');
+    });
+    document.getElementById('idea-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('idea-title').focus(), 100);
+  }
+
+  function closeIdeaDrawer() {
+    document.getElementById('idea-overlay').classList.remove('open');
+  }
+
+  document.getElementById('drawer-cancel').addEventListener('click', closeIdeaDrawer);
+  document.getElementById('idea-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('idea-overlay')) closeIdeaDrawer();
+  });
+
+  document.querySelectorAll('.label-chip').forEach(chip => {
+    chip.addEventListener('click', () => chip.classList.toggle('selected'));
+  });
+
+  document.getElementById('drawer-submit').addEventListener('click', submitIdea);
+
+  function getNextIdeaNumber() {
+    if (currentCollection) {
+      const cols = getCollections();
+      const colIdx = cols.findIndex(c => c.id === currentCollection.id);
+      const number = colIdx !== -1 ? (cols[colIdx].nextNumber || 1) : 1;
+      if (colIdx !== -1) {
+        cols[colIdx].nextNumber = number + 1;
+        cols[colIdx].updated_at = new Date().toISOString();
+        saveCollections(cols);
+        allCollections = cols;
+        currentCollection = cols[colIdx];
+      }
+      return number;
+    } else {
+      const ideas = getIdeas(currentRepo.full_name);
+      if (ideas.length === 0) return 1;
+      const numbers = ideas.map(i => i.number || 0);
+      return Math.max(...numbers) + 1;
+    }
+  }
+
+  function submitIdea() {
+    const title = document.getElementById('idea-title').value.trim();
+    if (!title) { showToast('Title is required', 'error'); document.getElementById('idea-title').focus(); return; }
+    const body = document.getElementById('idea-body').value.trim();
+    const labels = Array.from(document.querySelectorAll('.label-chip.selected')).map(c => c.dataset.label);
+    const editId = document.getElementById('edit-idea-id').value;
+    const submitBtn = document.getElementById('drawer-submit');
+    submitBtn.innerHTML = '<span class="spinner"></span>';
+    submitBtn.disabled = true;
+
+    try {
+      const key = getActiveKey();
+      const ideas = getIdeas(key);
+      const now = new Date().toISOString();
+
+      if (editId) {
+        const idx = ideas.findIndex(i => i.id === editId);
+        if (idx !== -1) {
+          ideas[idx] = { ...ideas[idx], title, body, labels, updated_at: now };
+          if (currentIdea && currentIdea.id === editId) currentIdea = ideas[idx];
+        }
+        saveIdeas(key, ideas);
+        showToast('Idea updated!', 'success');
+        closeIdeaDrawer();
+        loadIdeas(currentIdeaState);
+        if (currentIdea && currentIdea.id === editId) openIdeaDetail();
+      } else {
+        const number = getNextIdeaNumber();
+        const newIdea = { id: generateId(), number, title, body, labels, state: 'open', created_at: now, updated_at: now };
+        ideas.unshift(newIdea);
+        saveIdeas(key, ideas);
+        showToast('Idea saved!', 'success');
+        closeIdeaDrawer();
+        loadIdeas(currentIdeaState);
+      }
+      syncWithGist();
+    } catch (e) {
+      showToast('Failed to save: ' + e.message, 'error');
+    } finally {
+      const editId2 = document.getElementById('edit-idea-id').value;
+      submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span id="drawer-submit-label">${editId2 ? 'Save Changes' : 'Save Idea'}</span>`;
+      submitBtn.disabled = false;
+    }
+  }
+
+  // ────────────────────────────────────────────
+  // IDEA DETAIL
+  // ────────────────────────────────────────────
+
+  function openIdeaDetail() {
+    const idea = currentIdea;
+    const labels = idea.labels.map(l => `<span class="badge badge-issue">${escHtml(l)}</span>`).join(' ');
+    const stateClass = idea.state === 'open' ? 'badge-open' : 'badge-closed';
+    const stateLabel = idea.state === 'open' ? 'open' : 'done';
+    document.getElementById('idea-detail-content').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:var(--space-4)">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-2)">
+          <h2 class="issue-detail-title">${escHtml(idea.title)}</h2>
+          <span class="badge ${stateClass}" style="flex-shrink:0">${stateLabel}</span>
+        </div>
+        <div class="issue-detail-meta">
+          ${idea.number ? `<span class="issue-number">#${idea.number}</span>` : ''}
+          <span>Updated ${timeAgo(idea.updated_at)}</span>
+          ${labels ? `<span>${labels}</span>` : ''}
+        </div>
+        <div class="divider"></div>
+        ${idea.body
+          ? `<div class="issue-detail-body">${escHtml(idea.body)}</div>`
+          : '<p style="font-size:var(--text-sm);color:var(--color-text-muted);font-style:italic">No description provided.</p>'}
+        <div class="action-row">
+          <button class="edit-btn" id="detail-edit-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
+          ${idea.state === 'open'
+            ? `<button class="close-issue-btn" id="detail-done-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Mark done
+               </button>`
+            : `<button class="close-issue-btn" id="detail-reopen-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.45"/></svg>
+                Reopen
+               </button>`}
+          <button class="delete-idea-btn" id="detail-delete-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Delete
+          </button>
+        </div>
+      </div>`;
+
+    document.getElementById('detail-edit-btn').addEventListener('click', () => openIdeaDrawer(true, idea));
+    const doneBtn = document.getElementById('detail-done-btn');
+    const reopenBtn = document.getElementById('detail-reopen-btn');
+    if (doneBtn) doneBtn.addEventListener('click', () => toggleIdeaState('done'));
+    if (reopenBtn) reopenBtn.addEventListener('click', () => toggleIdeaState('open'));
+    document.getElementById('detail-delete-btn').addEventListener('click', deleteCurrentIdea);
+    showScreen('screen-detail');
+  }
+
+  function toggleIdeaState(newState) {
+    const key = getActiveKey();
+    const ideas = getIdeas(key);
+    const idx = ideas.findIndex(i => i.id === currentIdea.id);
+    if (idx !== -1) {
+      ideas[idx].state = newState;
+      ideas[idx].updated_at = new Date().toISOString();
+      currentIdea = ideas[idx];
+      saveIdeas(key, ideas);
+    }
+    showToast(newState === 'done' ? 'Marked as done!' : 'Idea reopened!', 'success');
+    openIdeaDetail();
+    syncWithGist();
+  }
+
+  function deleteCurrentIdea() {
+    if (!confirm('Delete this idea? This cannot be undone.')) return;
+    const key = getActiveKey();
+    const ideas = getIdeas(key).filter(i => i.id !== currentIdea.id);
+    saveIdeas(key, ideas);
+    currentIdea = null;
+    showToast('Idea deleted', 'success');
+    showScreen('screen-ideas');
+    loadIdeas(currentIdeaState);
+    syncWithGist();
+  }
+
+  // ────────────────────────────────────────────
+  // COLLECTION DRAWER
+  // ────────────────────────────────────────────
+
+  function openCollectionDrawer(editMode, col = null) {
+    document.getElementById('col-drawer-title').textContent = editMode ? 'Edit Collection' : 'New Collection';
+    document.getElementById('col-drawer-submit-label').textContent = editMode ? 'Save Changes' : 'Create Collection';
+    document.getElementById('col-name-input').value = editMode ? col.name : '';
+    document.getElementById('col-desc-input').value = (editMode && col.description) ? col.description : '';
+    document.getElementById('edit-collection-id').value = editMode ? col.id : '';
+    document.getElementById('delete-collection-btn').style.display = editMode ? '' : 'none';
+    document.getElementById('collection-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('col-name-input').focus(), 100);
+  }
+
+  function closeCollectionDrawer() {
+    document.getElementById('collection-overlay').classList.remove('open');
+  }
+
+  document.getElementById('new-collection-btn').addEventListener('click', () => openCollectionDrawer(false));
+  document.getElementById('edit-collection-btn').addEventListener('click', () => openCollectionDrawer(true, currentCollection));
+  document.getElementById('col-drawer-cancel').addEventListener('click', closeCollectionDrawer);
+  document.getElementById('collection-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('collection-overlay')) closeCollectionDrawer();
+  });
+
+  document.getElementById('col-drawer-submit').addEventListener('click', submitCollection);
+
+  function submitCollection() {
+    const name = document.getElementById('col-name-input').value.trim();
+    if (!name) { showToast('Name is required', 'error'); document.getElementById('col-name-input').focus(); return; }
+    const description = document.getElementById('col-desc-input').value.trim();
+    const editId = document.getElementById('edit-collection-id').value;
+    const now = new Date().toISOString();
+
+    if (editId) {
+      const cols = getCollections();
+      const idx = cols.findIndex(c => c.id === editId);
+      if (idx !== -1) {
+        cols[idx] = { ...cols[idx], name, description, updated_at: now };
+        saveCollections(cols);
+        allCollections = cols;
+        if (currentCollection && currentCollection.id === editId) {
+          currentCollection = cols[idx];
+          document.getElementById('collection-title').textContent = name;
+          document.getElementById('collection-subtitle').textContent = description || 'No description';
+        }
+      }
+      showToast('Collection updated!', 'success');
+    } else {
+      const newCol = { id: generateId(), name, description, nextNumber: 1, created_at: now, updated_at: now };
+      const cols = getCollections();
+      cols.unshift(newCol);
+      saveCollections(cols);
+      allCollections = cols;
+      showToast('Collection created!', 'success');
+    }
+
+    closeCollectionDrawer();
+    loadCollections();
+    syncWithGist();
+  }
+
+  document.getElementById('delete-collection-btn').addEventListener('click', () => {
+    const editId = document.getElementById('edit-collection-id').value;
+    const colName = document.getElementById('col-name-input').value || (currentCollection && currentCollection.name) || 'this collection';
+    if (!confirm(`Delete "${colName}" and all its ideas? This cannot be undone.`)) return;
+    const cols = getCollections().filter(c => c.id !== editId);
+    saveCollections(cols);
+    localStorage.removeItem('ideadrop_v1_ideas_' + editId);
+    allCollections = cols;
+    closeCollectionDrawer();
+    showToast('Collection deleted', 'success');
+    showScreen('screen-collections');
+    loadCollections();
+    syncWithGist();
+  });
+
+  // ── ENTER KEY SHORTCUTS ──
+  document.getElementById('idea-title').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('idea-body').focus();
+  });
+  document.getElementById('col-name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('col-desc-input').focus();
+  });
+  document.getElementById('col-desc-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('col-drawer-submit').click();
+  });
+
+  // ── UTILS ──
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escAttr(str) {
+    return String(str).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function timeAgo(dateStr) {
+    const diff = (Date.now() - new Date(dateStr)) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 2592000) return Math.floor(diff / 86400) + 'd ago';
+    return Math.floor(diff / 2592000) + 'mo ago';
+  }
+
+  // ── INIT ──
+  loadCollections();
+
+  const savedToken = localStorage.getItem('ideadrop_github_token');
+  const savedUsername = localStorage.getItem('ideadrop_github_username');
+  if (savedToken && savedUsername) {
+    token = savedToken;
+    username = savedUsername;
+    document.getElementById('topbar-sub').textContent = '@' + username;
+    document.getElementById('settings-btn').style.display = '';
+    loadRepos();
+    syncWithGist().then(() => {
+      loadCollections();
+      if (token) renderRepos(allRepos);
+    });
+  } else {
+    renderRepos([]);
+  }
+})();
+</script>
+</body>
+</html>
