@@ -9,8 +9,9 @@
 //  - GitHub API calls never go through this cache. All ideas already live in
 //    localStorage, and index.html owns the sync queue that replays writes to
 //    the Gist once the connection is back.
-const STATIC_CACHE = 'ideadrop-static-v2';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const STATIC_CACHE = 'ideadrop-static-v3';
+const SHELL = ['./', 'index.html', 'manifest.webmanifest',
+  'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 const FONT_HOSTS = ['api.fontshare.com', 'cdn.fontshare.com'];
 
 self.addEventListener('install', (e) => {
