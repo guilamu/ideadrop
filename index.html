@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#171614">
 <title>IdeaDrop</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,600,700&display=swap" rel="stylesheet">
 <script>
 // Apply saved theme before render to avoid flash
@@ -306,7 +309,8 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       </div>
     </div>
     <div class="topbar-actions">
-      <span id="sync-indicator" style="display:none;align-items:center;font-size:var(--text-xs);color:var(--color-text-muted);font-weight:600;margin-right:var(--space-1)"></span>
+      <button id="sync-indicator" type="button" title="Sync status"
+              style="display:none;align-items:center;font-size:var(--text-xs);color:var(--color-text-muted);font-weight:600;margin-right:var(--space-1)"></button>
       <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       </button>
@@ -477,6 +481,8 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
 
   // ── STORAGE ──
   const COLLECTIONS_KEY = 'ideadrop_v1_collections';
+  const PENDING_KEY = 'ideadrop_v1_pending';  // local changes not yet pushed to the Gist
+  const REPOS_KEY = 'ideadrop_v1_repos';      // last known repo list, for offline launches
 
   function getCollections() {
     try { return JSON.parse(localStorage.getItem(COLLECTIONS_KEY) || '[]'); }
@@ -533,6 +539,46 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       ids.push(id);
       saveDeletedIds(ids);
     }
+  }
+
+  // ── OFFLINE STATE ──
+  // Ideas already live in localStorage, so every screen keeps working without a
+  // network. What needs care is the Gist round trip: each local change bumps a
+  // pending counter that is only cleared once the push succeeded, and the sync
+  // is replayed when the connection comes back.
+  let isOffline = !navigator.onLine;
+  let lastSyncAt = 0;
+
+  function getPendingCount() {
+    return parseInt(localStorage.getItem(PENDING_KEY) || '0', 10) || 0;
+  }
+  function setPendingCount(n) {
+    try {
+      if (n > 0) localStorage.setItem(PENDING_KEY, String(n));
+      else localStorage.removeItem(PENDING_KEY);
+    } catch (e) { }
+  }
+  // Called after every local write: record the change, then try to push it.
+  // Without a token there is nothing to sync to, so nothing to track either.
+  function markDirty() {
+    if (!token) return;
+    setPendingCount(getPendingCount() + 1);
+    updateSyncIndicator();
+    syncWithGist();
+  }
+
+  // Repos are only used for their name/description, so cache a slim projection
+  // rather than the full GitHub payload (100 repos would blow past the quota).
+  function getCachedRepos() {
+    try { return JSON.parse(localStorage.getItem(REPOS_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function saveCachedRepos(repos) {
+    try {
+      localStorage.setItem(REPOS_KEY, JSON.stringify(
+        repos.map(r => ({ full_name: r.full_name, name: r.name, description: r.description }))
+      ));
+    } catch (e) { }
   }
 
   // ── THEME ──
@@ -596,11 +642,17 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       }
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'GitHub API error ' + res.status);
+      const body = await res.json().catch(() => ({}));
+      const err = new Error(body.message || 'GitHub API error ' + res.status);
+      err.status = res.status;
+      throw err;
     }
     return res.json();
   }
+
+  // A failed fetch() rejects with a TypeError and no status: that is the
+  // network being unreachable rather than GitHub refusing the request.
+  const isNetworkError = e => !e.status;
 
   // ── MERGE ENGINE ──
   function mergeSyncData(localCols, remoteCols, localIdeasMap, remoteIdeasMap, localDeletedIds, remoteDeletedIds) {
@@ -665,18 +717,74 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
     };
   }
 
-  // ── SYNC ENGINE ──
-  let isSyncing = false;
-  async function syncWithGist() {
-    if (!token) return;
-    if (isSyncing) return;
-    isSyncing = true;
+  // ── SYNC INDICATOR ──
+  const syncIndicator = document.getElementById('sync-indicator');
+  let syncedTimer = null;
 
-    const syncIndicator = document.getElementById('sync-indicator');
-    if (syncIndicator) {
-      syncIndicator.style.display = 'inline-flex';
-      syncIndicator.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:1.5px;margin-right:4px"></span> Syncing...';
+  function updateSyncIndicator(justSynced) {
+    if (!token) { syncIndicator.style.display = 'none'; return; }
+    const n = getPendingCount();
+    let html, title;
+
+    if (isSyncing) {
+      html = '<span class="spinner" style="width:12px;height:12px;border-width:1.5px;margin-right:4px"></span> Syncing…';
+      title = 'Syncing with GitHub…';
+    } else if (isOffline) {
+      html = '<span style="margin-right:4px">📴</span> Offline' + (n ? ' · ' + n : '');
+      title = n
+        ? 'Offline — ' + n + ' change' + (n > 1 ? 's' : '') + ' saved on this device, they will sync as soon as the connection is back'
+        : 'Offline — showing the ideas stored on this device';
+    } else if (n) {
+      html = '<span style="color:var(--color-warning);margin-right:4px">⏳</span>' + n + ' pending';
+      title = n + ' change' + (n > 1 ? 's' : '') + ' waiting to sync — tap to retry now';
+    } else if (syncFailed) {
+      html = '<span style="color:var(--color-error)">Sync failed</span>';
+      title = 'Last sync failed — tap to retry';
+    } else if (justSynced) {
+      html = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="color:var(--color-success);margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg> Synced';
+      title = 'Everything is synced';
+    } else {
+      syncIndicator.style.display = 'none';
+      return;
     }
+    syncIndicator.innerHTML = html;
+    syncIndicator.title = title;
+    syncIndicator.style.display = 'inline-flex';
+  }
+  syncIndicator.addEventListener('click', () => syncWithGist(true));
+
+  // ── SYNC ENGINE ──
+  let isSyncing = false, syncFailed = false;
+  let retryTimer = null, retryDelay = 0;
+  const RETRY_MIN = 15000, RETRY_MAX = 300000;
+
+  // Offline retries back off from 15s to 5min. The 'online' event is the main
+  // trigger; this covers the cases it misses (captive portals, flaky mobile
+  // data, a laptop that reports a link but has no route out).
+  function scheduleRetry() {
+    if (retryTimer || !token || !getPendingCount()) return;
+    retryDelay = retryDelay ? Math.min(retryDelay * 2, RETRY_MAX) : RETRY_MIN;
+    retryTimer = setTimeout(() => { retryTimer = null; syncWithGist(); }, retryDelay);
+  }
+
+  async function syncWithGist(manual = false) {
+    if (!token || isSyncing) return;
+
+    // Known to be offline: don't burn a request, the 'online' event will fire.
+    if (!navigator.onLine) {
+      isOffline = true;
+      updateSyncIndicator();
+      scheduleRetry();
+      if (manual) showToast('Still offline — changes will sync automatically', 'error');
+      return;
+    }
+
+    // Changes covered by this push. Anything saved while it is in flight stays
+    // counted, so it is not silently marked as synced.
+    const flushing = getPendingCount();
+    let ok = false, error = null, changed = false;
+    isSyncing = true;
+    updateSyncIndicator();
 
     try {
       let gistId = localStorage.getItem('ideadrop_gist_id');
@@ -692,16 +800,21 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
         }
       }
 
-      // 2. Fetch remote Gist contents
+      // 2. Fetch remote Gist contents. A failed read has to abort the whole
+      //    sync: pushing local-only data would wipe whatever another device
+      //    wrote to the Gist while this one was offline.
       if (gistId) {
+        let gist = null;
         try {
-          const gist = await ghFetch('/gists/' + gistId);
-          if (gist.files && gist.files['ideadrop_sync.json']) {
-            const fileContent = gist.files['ideadrop_sync.json'].content;
-            remoteData = JSON.parse(fileContent);
-          }
+          gist = await ghFetch('/gists/' + gistId);
         } catch (e) {
-          console.error('Failed to fetch Gist contents', e);
+          if (e.status !== 404) throw e;
+          // Gist deleted on GitHub: forget the id and recreate one below.
+          localStorage.removeItem('ideadrop_gist_id');
+          gistId = null;
+        }
+        if (gist && gist.files && gist.files['ideadrop_sync.json']) {
+          remoteData = JSON.parse(gist.files['ideadrop_sync.json'].content);
         }
       }
 
@@ -709,6 +822,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       const localCols = getCollections();
       const localIdeasMap = getLocalIdeasMap();
       const localDeletedIds = getDeletedIds();
+      const beforeMerge = JSON.stringify([localCols, localIdeasMap, localDeletedIds]);
 
       // 4. Merge datasets
       let mergedCols = localCols;
@@ -746,6 +860,9 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
         mergedDeletedIds.forEach(id => {
           localStorage.removeItem('ideadrop_v1_ideas_' + id);
         });
+
+        // Did the merge actually bring anything in from another device?
+        changed = JSON.stringify([getCollections(), getLocalIdeasMap(), getDeletedIds()]) !== beforeMerge;
       }
 
       // 5. Save back to GitHub Gist
@@ -779,24 +896,77 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
         });
         localStorage.setItem('ideadrop_gist_id', newGist.id);
       }
-
-      if (syncIndicator) {
-        syncIndicator.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="color:var(--color-success);margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg> Synced';
-        setTimeout(() => {
-          if (syncIndicator.textContent.includes('Synced')) {
-            syncIndicator.style.display = 'none';
-          }
-        }, 3000);
-      }
+      ok = true;
     } catch (e) {
-      console.error('Sync error:', e);
-      if (syncIndicator) {
-        syncIndicator.innerHTML = '<span style="color:var(--color-error);font-size:var(--text-xs)">Sync failed</span>';
-      }
+      error = e;
     } finally {
       isSyncing = false;
     }
+
+    if (ok) {
+      isOffline = false;
+      syncFailed = false;
+      retryDelay = 0;
+      lastSyncAt = Date.now();
+      setPendingCount(Math.max(0, getPendingCount() - flushing));
+      updateSyncIndicator(true);
+      clearTimeout(syncedTimer);
+      syncedTimer = setTimeout(() => updateSyncIndicator(), 3000);
+      if (changed) refreshCurrentView();
+      // Saved while the push was in flight: send it straight away.
+      if (getPendingCount()) syncWithGist();
+    } else {
+      console.error('Sync error:', error);
+      if (isNetworkError(error)) isOffline = true; else syncFailed = true;
+      updateSyncIndicator();
+      scheduleRetry();
+      if (manual) {
+        showToast(isOffline
+          ? 'Still offline — changes will sync automatically'
+          : 'Sync failed: ' + error.message, 'error');
+      }
+    }
   }
+
+  // A sync now runs on reconnection and on refocus, not only at startup, so it
+  // can pull another device's changes while a screen is already on display.
+  // Re-render that screen instead of waiting for the user to navigate away.
+  function refreshCurrentView() {
+    allCollections = getCollections();
+    if (document.getElementById('screen-collections').classList.contains('active')) {
+      renderCollections(allCollections);
+      if (token) renderRepos(allRepos);
+    } else if (document.getElementById('screen-ideas').classList.contains('active')) {
+      if (currentCollection) {
+        currentCollection = allCollections.find(c => c.id === currentCollection.id) || currentCollection;
+      }
+      loadIdeas(currentIdeaState);
+    } else if (currentIdea) {
+      const fresh = getIdeas(getActiveKey()).find(i => i.id === currentIdea.id);
+      // Deleted from another device: leave the open idea alone rather than
+      // yanking the screen out from under the user.
+      if (fresh) { currentIdea = fresh; openIdeaDetail(); }
+    }
+  }
+
+  // ── CONNECTION EVENTS ──
+  window.addEventListener('online', () => {
+    isOffline = false;
+    retryDelay = 0;
+    updateSyncIndicator();
+    syncWithGist();
+    if (token && !allRepos.length) loadRepos();
+  });
+  window.addEventListener('offline', () => {
+    isOffline = true;
+    updateSyncIndicator();
+  });
+  // Coming back to the app: pull other devices' changes, but not on every
+  // single focus.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    if (getPendingCount() || Date.now() - lastSyncAt > 60000) syncWithGist();
+  });
 
   // ── GITHUB DRAWER OVERLAY ──
   const githubOverlay = document.getElementById('github-overlay');
@@ -860,6 +1030,11 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       localStorage.removeItem('ideadrop_github_username');
       localStorage.removeItem('ideadrop_gist_id');
       localStorage.removeItem('ideadrop_v1_deleted_ids');
+      localStorage.removeItem(PENDING_KEY);
+      localStorage.removeItem(REPOS_KEY);
+      clearTimeout(retryTimer); retryTimer = null;
+      syncFailed = false;
+      updateSyncIndicator();
       document.getElementById('settings-btn').style.display = 'none';
       document.getElementById('topbar-sub').textContent = 'Local Idea Capture';
       showToast('Disconnected from GitHub', 'success');
@@ -925,6 +1100,14 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
       renderRepos([]);
       return;
     }
+    // Offline: the repo list is only a shell around ideas that already live in
+    // localStorage, so fall back to the last known list instead of locking the
+    // user out of their repo-scoped ideas.
+    if (!navigator.onLine) {
+      allRepos = getCachedRepos();
+      renderRepos(allRepos);
+      return;
+    }
     list.innerHTML = skeletons(3);
     try {
       let page = 1, repos = [];
@@ -935,8 +1118,17 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
         page++;
       }
       allRepos = repos;
+      saveCachedRepos(repos);
       renderRepos(repos);
     } catch(e) {
+      const cached = getCachedRepos();
+      if (isNetworkError(e) && cached.length) {
+        isOffline = true;
+        updateSyncIndicator();
+        allRepos = cached;
+        renderRepos(cached);
+        return;
+      }
       list.innerHTML = '<p style="color:var(--color-error);font-size:var(--text-sm)">Failed to load: ' + e.message + '</p>';
     }
   }
@@ -1226,7 +1418,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
         closeIdeaDrawer();
         loadIdeas(currentIdeaState);
       }
-      syncWithGist();
+      markDirty();
     } catch (e) {
       showToast('Failed to save: ' + e.message, 'error');
     } finally {
@@ -1302,7 +1494,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
     }
     showToast(newState === 'done' ? 'Marked as done!' : 'Idea reopened!', 'success');
     openIdeaDetail();
-    syncWithGist();
+    markDirty();
   }
 
   function deleteCurrentIdea() {
@@ -1315,7 +1507,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
     showToast('Idea deleted', 'success');
     showScreen('screen-ideas');
     loadIdeas(currentIdeaState);
-    syncWithGist();
+    markDirty();
   }
 
   // ────────────────────────────────────────────
@@ -1378,7 +1570,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
 
     closeCollectionDrawer();
     loadCollections();
-    syncWithGist();
+    markDirty();
   }
 
   document.getElementById('delete-collection-btn').addEventListener('click', () => {
@@ -1399,7 +1591,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
     showToast('Collection deleted', 'success');
     showScreen('screen-collections');
     loadCollections();
-    syncWithGist();
+    markDirty();
   });
 
   // ── ENTER KEY SHORTCUTS ──
@@ -1432,6 +1624,14 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
   // ── INIT ──
   loadCollections();
 
+  // Offline shell. Needs a secure context (https or localhost); over file://
+  // registration throws and the app simply keeps working online-only.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => { });
+    });
+  }
+
   const savedToken = localStorage.getItem('ideadrop_github_token');
   const savedUsername = localStorage.getItem('ideadrop_github_username');
   if (savedToken && savedUsername) {
@@ -1439,6 +1639,7 @@ a,button,[role="button"]{transition:color var(--transition),background var(--tra
     username = savedUsername;
     document.getElementById('topbar-sub').textContent = '@' + username;
     document.getElementById('settings-btn').style.display = '';
+    updateSyncIndicator();
     loadRepos();
     syncWithGist().then(() => {
       loadCollections();
